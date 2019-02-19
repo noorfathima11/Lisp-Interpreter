@@ -7,16 +7,16 @@ fs.readFile('./inputFile.scm', 'utf-8', function (err, data) {
 })
 
 let env = {
-    '+' : (args) => { return args.reduce((a,b) => a * 1 + b * 1) },
-    '-' : (args) => { return args.reduce((a,b) => a  * 1 - b * 1) },
-    '*' : (args) => { return args.reduce((a,b) => (a * 1) * (b * 1)) },
-    '/' : (args) => { return args.reduce((a,b) => a * 1 / b * 1) },
-    '>' : (args) => { return args.reduce((a,b) => a * 1 > b * 1) },
-    '<' : (args) => { return args.reduce((a,b) => a * 1 < b * 1) },
-    '>=' : (args) => { return args.reduce((a,b) => a * 1 >= b * 1) },
-    '<=' : (args) => { return args.reduce((a,b) => a * 1 <= b * 1) },
-    '=' : (args) => { return args.reduce((a,b) => a * 1 === b * 1) },
-    
+  '+': (args) => { return args.reduce((a, b) => a * 1 + b * 1) },
+  '-': (args) => { return args.reduce((a, b) => a * 1 - b * 1) },
+  '*': (args) => { return args.reduce((a, b) => (a * 1) * (b * 1)) },
+  '/': (args) => { return args.reduce((a, b) => a * 1 / b * 1) },
+  '>': (args) => { return args.reduce((a, b) => a * 1 > b * 1) },
+  '<': (args) => { return args.reduce((a, b) => a * 1 < b * 1) },
+  '>=': (args) => { return args.reduce((a, b) => a * 1 >= b * 1) },
+  '<=': (args) => { return args.reduce((a, b) => a * 1 <= b * 1) },
+  '=': (args) => { return args.reduce((a, b) => a * 1 === b * 1) }
+
 
 }
 // let props = Object.keys(env)
@@ -68,7 +68,7 @@ let curlyParser = input => {
   if (!input.startsWith('(')) return null
   input = input.substr(1).slice(0, -1)
   let returnArray = []
-  if(input.includes('define')) {
+  if (input.includes('define')) {
     console.log('yes')
     input = input.trim()
     let id = idParser(input.slice(0, -1))
@@ -96,70 +96,52 @@ typeParser = factoryParser(numberParser, symbolParser, curlyParser)
 let spaceParser = input => input.match(/^[\n*\s\n*]/) ? [null, input.slice(input.match(/\S/).index)] : null
 let commaParser = input => input.startsWith(',') ? [null, input.slice(1)] : null
 
-let expressionParser  = (input) => {
-  console.log("inp", input)
-  // go on parsing till you find an identifier 
-  input = input.replace(/\(/g , '( ').replace(/\)/g, ' )')
+let expressionParser = (input) => {
+  console.log('inp', input)
+  // go on parsing till you find an identifier
+  input = input.replace(/\(/g, '( ').replace(/\)/g, ' )')
   console.log('replaced input', input)
-  let id = [], res = [], k = 0, key, parsePass
-  for(let i = input.length - 1; i >= 0; i--)
-  {
-      if(input[i] === '('){
-        parsePass = typeParser(input.slice(i))
-        console.log('pass', parsePass)
-        console.log('type', typeof(parsePass[0]))
-        if (parsePass === null) return null
-        id = parsePass[0]
-        console.log('id', id)
-        for(let j in env) {
-            if (env.hasOwnProperty(id[0])) {
-              console.log('yes')
-              console.log(id[0])
-              key = id[0]
-              id = id.splice(1)
-              console.log('spliced', id)
-             if(id[id.length - 1] === ')') { 
-                console.log('yes2')
-                id.splice(-1)
-                console.log('id2', id)
-              }
-              console.log('id', typeof(id))
-              console.log('idlength', id.length)
-              if(id.length > 0 ) {
-              console.log('yes3')
-              res[k++] = env[key](id)
-              console.log('res', res)
-              }
-            }
+  let id = []; let res = []; let k = 0; let key
+  for (let i = input.length - 1; i >= 0; i--) {
+    if (input[i] === '(') {
+      let parsePass = typeParser(input.slice(i))
+      console.log('pass', parsePass)
+      console.log('type', typeof (parsePass[0]))
+      if (parsePass === null) return null
+      id = parsePass[0]
+      console.log('id', id)
+      for (let j in env) {
+        if (env.hasOwnProperty(id[0])) {
+          console.log('yes')
+          console.log(id[0])
+          key = id[0]
+          id = id.splice(1)
+          console.log('spliced', id)
+          if (id[id.length - 1] === ')') {
+            console.log('yes2')
+            id.splice(-1)
+            console.log('id2', id)
           }
-      input = input.slice(0, i)
-      console.log('newinp', input) 
-      } else {
-        console.log('inp', input)
-        let array = input.split(' ')
-        console.log('arr', array)
-        parsePass = typeParser(input)
-        if(parsePass !== null) {
-          console.log('pp', parsePass)
-          return parsePass[0]
+          console.log('id', typeof (id))
+          console.log('idlength', id.length)
+          if (id.length > 0) {
+            console.log('yes3')
+            res[k++] = env[key](id)
+          }
         }
-
       }
-   }
-   let result
-   res = res.reverse()
-   result = env[key](res)
-   return result
-  
+      input = input.slice(0, i)
+    }
+  }
+  let result
+  res = res.reverse()
+  result = env[key](res)
+  return result
 }
 
 let idParser = (input) => {
   let inputArray = input.split(' ')
-  console.log('inputArray', inputArray)
   let value = inputArray.splice(2)
-  console.log('value', value)
   env[`${inputArray[1]}`] = ''
-  console.log('env', env)
   return value
-  
 }

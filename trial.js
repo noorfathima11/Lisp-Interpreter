@@ -75,12 +75,25 @@ let symbolParser = input => {
   return [actual, remaining]
 }
 
-let identifierParser = (input) => {
-  input = input.trim()
-  console.log('defineInput', input[0])
-  if (!input.startsWith('define')) return null
-  let inputArray = input.split(' ')
-  console.log('inputArray', inputArray)
+let identifierParser = (inputArray) => {
+  console.log('defineInput', inputArray)
+  if (inputArray[0] === 'define') {
+    return definitionInterpreter(inputArray)
+  }
+  if (inputArray[0] === 'if') {
+    return conditionalInterpreter(inputArray)
+  }
+  return arithmeticEvaluator(inputArray)
+}
+
+let conditionalInterpreter = (inputArray) => {
+  console.log('conditionInput', inputArray)
+  return ['wait', '']
+}
+
+let definitionInterpreter = (inputArray) => {
+  console.log('defineInput', inputArray)
+  // if (inputArray[0] !== 'define') return null
   let value = inputArray.splice(2)
   console.log('value', value)
   let finalResult = expressionParser(value.join())
@@ -100,35 +113,35 @@ let arithmeticEvaluator = (input) => {
   let k = 0
   let finalResult = []
 
-  for (let i = inputArray.length - 1; i >= 1; i--) {
-    if (inputArray[i] === ')') endIndex = i
-    console.log('endIndex', endIndex)
-    if (inputArray[i] === '(') {
-      key = inputArray[i + 1]
-      console.log('key', key)
-      slicedArray = inputArray.slice(i + 2, endIndex)
-      console.log('slicedArray', slicedArray)
-      if (slicedArray.length !== 2) return null
-      result[k++] = env[key](slicedArray)
-      console.log('envResult', result)
+  if (inputArray[0] === '(' || inputArray[inputArray.length - 1] === ')') {
+    for (let i = inputArray.length - 1; i >= 0; i--) {
+      if (inputArray[i] === ')') endIndex = i
+      console.log('endIndex', endIndex)
+      if (inputArray[i] === '(') {
+        key = inputArray[i + 1]
+        console.log('key', key)
+        slicedArray = inputArray.slice(i + 2, endIndex)
+        console.log('slicedArray', slicedArray)
+        if (slicedArray.length !== 2) return null
+        result[k++] = env[key](slicedArray)
+        console.log('envResult', result)
+      }
     }
-  }
-  console.log('resultLength', result.length)
-  if (!result.length) {
-    slicedArray = inputArray.slice(2, endIndex)
+  } else {
+    slicedArray = inputArray.slice(1, endIndex)
     console.log('slicedArray', slicedArray)
     if (slicedArray.length !== 2) return null
-    finalResult = env[inputArray[1]](slicedArray)
+    finalResult = env[inputArray[0]](slicedArray)
     console.log('finalResult', finalResult)
     return [finalResult, '']
   }
 
-  if (inputArray[1] !== '(') {
-    result[k++] = inputArray[2] * 1
+  if (inputArray[0] !== '(') {
+    result[k++] = inputArray[1] * 1
   }
   result.reverse()
   console.log('reversed result', result)
-  finalResult = env[inputArray[1]](result)
+  finalResult = env[inputArray[0]](result)
   console.log('finalResult', finalResult)
 
   return [finalResult, '']
@@ -139,20 +152,15 @@ let sExpressionParser = (input) => {
   console.log('sExpinp', input)
   console.log('props', props)
   if (!input.startsWith('(')) return null
-  input = input.replace(/\(/g, '( ').replace(/\)/g, ' )')
+  input = input.substr(1).slice(0, -1)
+  input = input.replace(/\(/g, ' ( ').replace(/\)/g, ' ) ')
+  console.log('removed braces', input)
   let inputArray = input.split(' ')
   console.log('inputArray', inputArray)
   inputArray = inputArray.filter((ele) => { return /\S/.test(ele) })
   console.log('inputArray', inputArray)
 
-  if (inputArray.includes('define')) {
-    let res = identifierParser(input.substr(1).slice(0, -1))
-    console.log('res', res)
-    if (res === null) return null
-    return [res[0], '']
-  }
-
-  let result = arithmeticEvaluator(inputArray)
+  let result = identifierParser(inputArray)
   if (result === null) return null
   return [result[0], '']
 }
@@ -169,6 +177,7 @@ let evaluator = (input) => {
   console.log('new input', input)
   let id = []
   let parsePass
+
   parsePass = expressionParser(input)
   if (parsePass === null) return null
   if (parsePass !== null) {
