@@ -75,58 +75,12 @@ let symbolParser = input => {
   return [actual, remaining]
 }
 
-let identifierParser = (inputArray) => {
-  console.log('identifierInput', inputArray)
-  if (inputArray[0] === 'define') {
-    return definitionInterpreter(inputArray)
-  }
-  if (inputArray[0] === 'if') {
-    return conditionalInterpreter(inputArray)
-  }
-  return arithmeticEvaluator(inputArray)
-}
-
-let conditionalInterpreter = (inputArray) => {
-  console.log('conditionInput', inputArray)
-  let indices
-  let startIndex
-  let endIndex
-  let part = ['cond', 'conseq', 'alt']
-  let k = 0
-  let evalClass = {}
-  while (inputArray.length > 0) {
-    indices = getIndices(inputArray)
-    console.log('indices', indices)
-    startIndex = indices[0]
-    console.log('startIndex', startIndex)
-    endIndex = indices[1]
-    console.log('endIndex', endIndex)
-    evalClass[`${part[k++]}`] = inputArray.slice(startIndex + 1, endIndex)
-    console.log('evalClass', evalClass)
-    inputArray = inputArray.slice(endIndex + 1)
-    console.log('sliced', inputArray)
-  }
-  let isCond = arithmeticEvaluator(evalClass.cond)
-  console.log('cond', isCond)
-  if (isCond[0]) return arithmeticEvaluator(evalClass.conseq)
-  return arithmeticEvaluator(evalClass.alt)
-}
-
-function getIndices (inputArray) {
-  let endIndex
-  let startIndex
-  for (let i = inputArray.length - 1; i >= 0; i--) {
-    if (inputArray[i] === ')') endIndex = i
-    console.log('cond endIndex', endIndex)
-    if (inputArray[i] === '(') startIndex = i
-    console.log('cond startIndex', startIndex)
-  }
-  return [startIndex, endIndex]
-}
-
-let definitionInterpreter = (inputArray) => {
-  console.log('defineInput', inputArray)
-  // if (inputArray[0] !== 'define') return null
+let identifierParser = (input) => {
+  input = input.trim()
+  console.log('defineInput', input[0])
+  if (!input.startsWith('define')) return null
+  let inputArray = input.split(' ')
+  console.log('inputArray', inputArray)
   let value = inputArray.splice(2)
   console.log('value', value)
   let finalResult = expressionParser(value.join())
@@ -138,42 +92,43 @@ let definitionInterpreter = (inputArray) => {
 
 let arithmeticEvaluator = (input) => {
   console.log('aeval', input)
-  let inputArray = input.slice(0)
+  let inputArray = input
   let endIndex
   let slicedArray
   let key
   let result = []
   let k = 0
   let finalResult = []
-  if (inputArray[0] === '(' || inputArray[inputArray.length - 1] === ')') {
-    for (let i = inputArray.length - 1; i >= 0; i--) {
-      if (inputArray[i] === ')') endIndex = i
-      console.log('endIndex', endIndex)
-      if (inputArray[i] === '(') {
-        key = inputArray[i + 1]
-        console.log('key', key)
-        slicedArray = inputArray.slice(i + 2, endIndex)
-        console.log('slicedArray', slicedArray)
-        if (slicedArray.length !== 2) return null
-        result[k++] = env[key](slicedArray)
-        console.log('envResult', result)
-      }
+
+  for (let i = inputArray.length - 1; i >= 1; i--) {
+    if (inputArray[i] === ')') endIndex = i
+    console.log('endIndex', endIndex)
+    if (inputArray[i] === '(') {
+      key = inputArray[i + 1]
+      console.log('key', key)
+      slicedArray = inputArray.slice(i + 2, endIndex)
+      console.log('slicedArray', slicedArray)
+      if (slicedArray.length !== 2) return null
+      result[k++] = env[key](slicedArray)
+      console.log('envResult', result)
     }
-  } else {
-    slicedArray = inputArray.slice(1, endIndex)
+  }
+  console.log('resultLength', result.length)
+  if (!result.length) {
+    slicedArray = inputArray.slice(2, endIndex)
     console.log('slicedArray', slicedArray)
     if (slicedArray.length !== 2) return null
-    finalResult = env[inputArray[0]](slicedArray)
+    finalResult = env[inputArray[1]](slicedArray)
     console.log('finalResult', finalResult)
     return [finalResult, '']
   }
 
-  if (inputArray[0] !== '(') {
-    result[k++] = inputArray[1] * 1
+  if (inputArray[1] !== '(') {
+    result[k++] = inputArray[2] * 1
   }
   result.reverse()
   console.log('reversed result', result)
-  finalResult = env[inputArray[0]](result)
+  finalResult = env[inputArray[1]](result)
   console.log('finalResult', finalResult)
 
   return [finalResult, '']
@@ -184,14 +139,20 @@ let sExpressionParser = (input) => {
   console.log('sExpinp', input)
   console.log('props', props)
   if (!input.startsWith('(')) return null
-  input = input.substr(1).slice(0, -1)
-  input = input.replace(/\(/g, ' ( ').replace(/\)/g, ' ) ')
-  console.log('removed braces', input)
+  input = input.replace(/\(/g, '( ').replace(/\)/g, ' )')
   let inputArray = input.split(' ')
   console.log('inputArray', inputArray)
   inputArray = inputArray.filter((ele) => { return /\S/.test(ele) })
   console.log('inputArray', inputArray)
-  let result = identifierParser(inputArray)
+
+  if (inputArray.includes('define')) {
+    let res = identifierParser(input.substr(1).slice(0, -1))
+    console.log('res', res)
+    if (res === null) return null
+    return [res[0], '']
+  }
+
+  let result = arithmeticEvaluator(inputArray)
   if (result === null) return null
   return [result[0], '']
 }
@@ -203,13 +164,11 @@ let expressionParser = factoryParser(numberParser, symbolParser, sExpressionPars
 
 let evaluator = (input) => {
   console.log('inp', input)
-  // can be replaced by trim???
   let spaceCheck
   input = (spaceCheck = spaceParser(input)) ? spaceCheck[1] : input
   console.log('new input', input)
   let id = []
   let parsePass
-
   parsePass = expressionParser(input)
   if (parsePass === null) return null
   if (parsePass !== null) {
