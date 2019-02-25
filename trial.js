@@ -1,3 +1,5 @@
+// works for not nested ifs
+
 let fs = require('fs')
 fs.readFile('./inputFile.scm', 'utf-8', function (err, data) {
   if (err) return console.log(err)
@@ -28,9 +30,10 @@ let env = {
   '<': (args) => { return args.reduce((a, b) => a * 1 < b * 1) },
   '>=': (args) => { return args.reduce((a, b) => a * 1 >= b * 1) },
   '<=': (args) => { return args.reduce((a, b) => a * 1 <= b * 1) },
-  '=': (args) => { return args.reduce((a, b) => a * 1 === b * 1) }
+  '===': (args) => { return args.reduce((a, b) => a * 1 === b * 1) }
 }
 let props = Object.keys(env)
+let condProps = ['>', '<', '>=', '<=', '===']
 
 let numberParser = (input, num, regEx = /^(-?(0|[1-9]\d*))(\.\d+)?(((e)(\+|-)?)\d+)?/ig) => (num = input.match(regEx)) ? [num[0] * 1, input.slice(num[0].length)] : null
 
@@ -87,41 +90,53 @@ let identifierParser = (inputArray) => {
 }
 
 let conditionalInterpreter = (inputArray) => {
-  console.log('conditionInput', inputArray)
-  let indices
-  let startIndex
-  let endIndex
-  let part = ['cond', 'conseq', 'alt']
-  let k = 0
-  let evalClass = {}
-  while (inputArray.length > 0) {
-    indices = getIndices(inputArray)
-    console.log('indices', indices)
-    startIndex = indices[0]
-    console.log('startIndex', startIndex)
-    endIndex = indices[1]
-    console.log('endIndex', endIndex)
-    evalClass[`${part[k++]}`] = inputArray.slice(startIndex + 1, endIndex)
-    console.log('evalClass', evalClass)
-    inputArray = inputArray.slice(endIndex + 1)
-    console.log('sliced', inputArray)
-  }
-  let isCond = arithmeticEvaluator(evalClass.cond)
-  console.log('cond', isCond)
-  if (isCond[0]) return arithmeticEvaluator(evalClass.conseq)
-  return arithmeticEvaluator(evalClass.alt)
+  console.log('conditional input', inputArray)
+  let cond = getCond(inputArray)
+  console.log('cond received', cond)
+  let isCond = arithmeticEvaluator(cond.slice(1, cond.length - 1))
+  console.log('isCond', isCond)
+  let conseq = getConseq(inputArray.slice(cond.length + 1))
+  console.log('conseq', conseq)
+
+  return [cond, '']
 }
 
-function getIndices (inputArray) {
-  let endIndex
-  let startIndex
-  for (let i = inputArray.length - 1; i >= 0; i--) {
-    if (inputArray[i] === ')') endIndex = i
-    console.log('cond endIndex', endIndex)
-    if (inputArray[i] === '(') startIndex = i
-    console.log('cond startIndex', startIndex)
+function getCond (inputArray) {
+  let openBracePos = []
+  let j = 0
+  let closeBracePos = []
+  let k = 0
+  let key
+  for (let i = 1; i < inputArray.length; i++) {
+    if (inputArray[i] === '(') {
+      openBracePos[j++] = i
+      key = inputArray[i + 1]
+      console.log('key in cond', key)
+    }
+    console.log('openBracePos, j-1', openBracePos, j - 1)
+    if (inputArray[i] === ')') {
+      closeBracePos[k++] = i
+      console.log('closeBracePos, k', closeBracePos, k)
+      if (condProps.includes(key)) return inputArray.slice(openBracePos[j - 1], closeBracePos[k - 1] + 1)
+      if (closeBracePos[k - 1] - openBracePos[j - 1] === 4) {
+        console.log('diff is 4')
+        openBracePos.splice(--j)
+        console.log('spliced openBracePos', openBracePos)
+        closeBracePos.splice(--k)
+        console.log('spliced closeBracePos', closeBracePos)
+      } else {
+        console.log('diff is not 4')
+        console.log('diff is ' + (closeBracePos[k - 1] - openBracePos[j - 1]))
+        console.log('cond', inputArray.slice(openBracePos[j - 1], closeBracePos[k - 1] + 1))
+        return inputArray.slice(openBracePos[j - 1], closeBracePos[k - 1] + 1)
+      }
+    }
   }
-  return [startIndex, endIndex]
+}
+
+function getConseq (inputArray) {
+  console.log('conseqInput', inputArray)
+  return ['wait', '']
 }
 
 let definitionInterpreter = (inputArray) => {
@@ -161,15 +176,23 @@ let arithmeticEvaluator = (input) => {
     }
   } else {
     slicedArray = inputArray.slice(1, endIndex)
-    console.log('slicedArray', slicedArray)
+    console.log('slicedArray2', slicedArray)
     if (slicedArray.length !== 2) return null
     finalResult = env[inputArray[0]](slicedArray)
-    console.log('finalResult', finalResult)
+    console.log('finalResult2', finalResult)
     return [finalResult, '']
   }
 
   if (inputArray[0] !== '(') {
-    result[k++] = inputArray[1] * 1
+    if (isNaN(inputArray[1]) * 1) {
+      key = inputArray[0]
+      console.log('key1', key)
+      result.reverse()
+      console.log('reversed result1', result)
+      finalResult = env[inputArray[0]](result)
+      console.log('finalResult1', finalResult)
+      return [finalResult, '']
+    } else result[k++] = inputArray[1] * 1
   }
   result.reverse()
   console.log('reversed result', result)
