@@ -115,16 +115,34 @@ let conditionalInterpreter = (inputArray) => {
     alt = nestedExpression(inputArray.slice(cond.length + conseq.length))
     console.log('nested alt received', alt)
   }
-  let isCond = arithmeticEvaluator(cond.slice(1, cond.length - 1))
-  console.log('isCond', isCond)
+  let isCond
+  if (cond.length === 1) {
+    isCond = expressionParser(cond)
+    console.log('here', isCond)
+  } else {
+    isCond = arithmeticEvaluator(cond.slice(1, cond.length - 1))
+    console.log('isCond', isCond)
+  }
   if (isCond[0]) {
-    let isConseq = arithmeticEvaluator(conseq.slice(1, conseq.length - 1))
+    let isConseq
+    if (conseq.length === 1) {
+      isConseq = expressionParser(conseq)
+      console.log('here1', isConseq)
+      return [isConseq, '']
+    }
+    isConseq = arithmeticEvaluator(conseq.slice(1, conseq.length - 1))
     console.log('isConseq', isConseq)
     return [isConseq, '']
   }
-  let isalt = arithmeticEvaluator(alt.slice(1, alt.length - 1))
-  console.log('isConseq', isalt)
-  return [isalt, '']
+  let isAlt
+  if (alt.length === 1) {
+    isAlt = expressionParser(alt)
+    console.log('here1', isAlt)
+    return [isAlt, '']
+  }
+  isAlt = arithmeticEvaluator(alt.slice(1, alt.length - 1))
+  console.log('isConseq', isAlt)
+  return [isAlt, '']
 }
 function simpleExpression (inputArray) {
   console.log('simple expression', inputArray)
@@ -134,6 +152,9 @@ function simpleExpression (inputArray) {
   let closeBracePos = []
   let k = 0
   let key
+  if (inputArray[0] !== '(') {
+    return inputArray[0]
+  }
   for (let i = 0; i < inputArray.length; i++) {
     if (inputArray[i] === '(') {
       openBracePos[j++] = i
