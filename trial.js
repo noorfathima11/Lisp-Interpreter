@@ -1,11 +1,15 @@
-const fs = require('fs')
+let readline = require('readline')
 
-fs.readFile('./inputFile.scm', 'utf-8', function (err, data) {
-  if (err) return console.log(err)
-  // data = data.replace('[', ' [ ').replace(']', ' ] ').replace('(', ' ( ').replace(')', ' ) ')
-  console.log('main data', data)
-  let evaluated = evaluator(data.toString())
+let rl = readline.createInterface(process.stdin, process.stdout)
+rl.setPrompt('>> ')
+rl.prompt()
+rl.on('line', function (input) {
+  if (input === 'exit') rl.close()
+  let evaluated = evaluator(input.toString())
   console.log('final', evaluated)
+  rl.prompt()
+}).on('close', function () {
+  process.exit(0)
 })
 
 let factoryParser = function (...parsers) {
