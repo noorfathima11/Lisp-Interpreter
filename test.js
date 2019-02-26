@@ -1,3 +1,4 @@
+// reading from other file
 let fs = require('fs')
 fs.readFile('./inputFile.scm', 'utf-8', function (err, data) {
   if (err) return console.log(err)
@@ -93,14 +94,26 @@ let conditionalInterpreter = (inputArray) => {
   inputArray = inputArray.slice(1)
   console.log('inputArray in cond', inputArray)
   let cond = simpleExpression(inputArray)
-  console.log('cond received', cond)
+  console.log('simple cond received', cond)
+  if (cond === 'not simple') {
+    cond = nestedExpression(inputArray)
+    console.log('nested cond received', cond)
+  }
   let conseq = simpleExpression(inputArray.slice(cond.length))
-  console.log('conseq', conseq)
+  console.log('simple conseq received', conseq)
+  if (conseq === 'not simple') {
+    conseq = nestedExpression(inputArray.slice(cond.length))
+    console.log('nested conseq received', conseq)
+  }
   let alt = simpleExpression(inputArray.slice(cond.length + conseq.length))
-  console.log('alt', alt)
+  console.log('simple alt received', alt)
+  if (alt === 'not simple') {
+    alt = nestedExpression(inputArray.slice(cond.length + conseq.length))
+    console.log('nested alt received', alt)
+  }
   let isCond = arithmeticEvaluator(cond.slice(1, cond.length - 1))
   console.log('isCond', isCond)
-  if (isCond) {
+  if (isCond[0]) {
     let isConseq = arithmeticEvaluator(conseq.slice(1, conseq.length - 1))
     console.log('isConseq', isConseq)
     return [isConseq, '']
@@ -112,6 +125,7 @@ let conditionalInterpreter = (inputArray) => {
 function simpleExpression (inputArray) {
   console.log('simple expression', inputArray)
   let openBracePos = []
+  let openBraceCount = 0
   let j = 0
   let closeBracePos = []
   let k = 0
@@ -120,6 +134,8 @@ function simpleExpression (inputArray) {
     if (inputArray[i] === '(') {
       openBracePos[j++] = i
       console.log('openBracePos, j', openBracePos, j)
+      openBraceCount++
+      if (openBraceCount > 1) return 'not simple'
       key = inputArray[i + 1]
       console.log('key in cond', key)
     }

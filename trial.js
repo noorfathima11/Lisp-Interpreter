@@ -1,4 +1,5 @@
-let fs = require('fs')
+const fs = require('fs')
+
 fs.readFile('./inputFile.scm', 'utf-8', function (err, data) {
   if (err) return console.log(err)
   // data = data.replace('[', ' [ ').replace(']', ' ] ').replace('(', ' ( ').replace(')', ' ) ')
@@ -181,18 +182,13 @@ function nestedExpression (inputArray) {
   }
 }
 
-function getConseq (inputArray) {
-  console.log('conseqInput', inputArray)
-
-  return ['wait', '']
-}
-
 let definitionInterpreter = (inputArray) => {
   console.log('defineInput', inputArray)
   // if (inputArray[0] !== 'define') return null
   let value = inputArray.splice(2)
   console.log('value', value)
-  let finalResult = expressionParser(value.join())
+  let finalResult = expressionParser(value.join(' '))
+  console.log('finalResult', finalResult)
   if (finalResult === null) return null
   env[`${inputArray[1]}`] = finalResult[0]
   console.log('env', env)
