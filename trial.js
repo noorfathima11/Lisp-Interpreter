@@ -1,5 +1,3 @@
-// works for not nested ifs
-
 let fs = require('fs')
 fs.readFile('./inputFile.scm', 'utf-8', function (err, data) {
   if (err) return console.log(err)
@@ -35,6 +33,7 @@ let env = {
 let props = Object.keys(env)
 let condProps = ['>', '<', '>=', '<=', '===']
 
+// Block of parsers -----------------------------------------------------------------------------------------------------------------------------------------------------
 let numberParser = (input, num, regEx = /^(-?(0|[1-9]\d*))(\.\d+)?(((e)(\+|-)?)\d+)?/ig) => (num = input.match(regEx)) ? [num[0] * 1, input.slice(num[0].length)] : null
 
 let symbolParser = input => {
@@ -91,17 +90,66 @@ let identifierParser = (inputArray) => {
 
 let conditionalInterpreter = (inputArray) => {
   console.log('conditional input', inputArray)
-  let cond = getCond(inputArray)
-  console.log('cond received', cond)
+  inputArray = inputArray.slice(1)
+  console.log('inputArray in cond', inputArray)
+  let cond = simpleExpression(inputArray)
+  console.log('simple cond received', cond)
+  if (cond === 'not simple') {
+    cond = nestedExpression(inputArray)
+    console.log('nested cond received', cond)
+  }
+  let conseq = simpleExpression(inputArray.slice(cond.length))
+  console.log('simple conseq received', conseq)
+  if (conseq === 'not simple') {
+    conseq = nestedExpression(inputArray.slice(cond.length))
+    console.log('nested conseq received', conseq)
+  }
+  let alt = simpleExpression(inputArray.slice(cond.length + conseq.length))
+  console.log('simple alt received', alt)
+  if (alt === 'not simple') {
+    alt = nestedExpression(inputArray.slice(cond.length + conseq.length))
+    console.log('nested alt received', alt)
+  }
   let isCond = arithmeticEvaluator(cond.slice(1, cond.length - 1))
   console.log('isCond', isCond)
-  let conseq = getConseq(inputArray.slice(cond.length + 1))
-  console.log('conseq', conseq)
-
-  return [cond, '']
+  if (isCond[0]) {
+    let isConseq = arithmeticEvaluator(conseq.slice(1, conseq.length - 1))
+    console.log('isConseq', isConseq)
+    return [isConseq, '']
+  }
+  let isalt = arithmeticEvaluator(alt.slice(1, alt.length - 1))
+  console.log('isConseq', isalt)
+  return [isalt, '']
 }
-
-function getCond (inputArray) {
+function simpleExpression (inputArray) {
+  console.log('simple expression', inputArray)
+  let openBracePos = []
+  let openBraceCount = 0
+  let j = 0
+  let closeBracePos = []
+  let k = 0
+  let key
+  for (let i = 0; i < inputArray.length; i++) {
+    if (inputArray[i] === '(') {
+      openBracePos[j++] = i
+      console.log('openBracePos, j', openBracePos, j)
+      openBraceCount++
+      if (openBraceCount > 1) return 'not simple'
+      key = inputArray[i + 1]
+      console.log('key in cond', key)
+    }
+    if (inputArray[i] === ')') {
+      closeBracePos[k++] = i
+      console.log('closeBracePos, k', closeBracePos, k)
+      if (closeBracePos[k - 1] - openBracePos[j - 1] === 4) {
+        console.log('diff is 4')
+        return inputArray.slice(openBracePos[j - 1], closeBracePos[k - 1] + 1)
+      }
+    }
+  }
+  return null
+}
+function nestedExpression (inputArray) {
   let openBracePos = []
   let j = 0
   let closeBracePos = []
@@ -117,7 +165,6 @@ function getCond (inputArray) {
     if (inputArray[i] === ')') {
       closeBracePos[k++] = i
       console.log('closeBracePos, k', closeBracePos, k)
-      if (condProps.includes(key)) return inputArray.slice(openBracePos[j - 1], closeBracePos[k - 1] + 1)
       if (closeBracePos[k - 1] - openBracePos[j - 1] === 4) {
         console.log('diff is 4')
         openBracePos.splice(--j)
@@ -136,6 +183,7 @@ function getCond (inputArray) {
 
 function getConseq (inputArray) {
   console.log('conseqInput', inputArray)
+
   return ['wait', '']
 }
 
@@ -175,12 +223,42 @@ let arithmeticEvaluator = (input) => {
       }
     }
   } else {
+    // (< 3 4)
     slicedArray = inputArray.slice(1, endIndex)
     console.log('slicedArray2', slicedArray)
-    if (slicedArray.length !== 2) return null
-    finalResult = env[inputArray[0]](slicedArray)
-    console.log('finalResult2', finalResult)
-    return [finalResult, '']
+    if (slicedArray.length === 2) {
+      finalResult = env[inputArray[0]](slicedArray)
+      console.log('finalResult2', finalResult)
+      return [finalResult, '']
+    } else {
+      let openBracePos
+      let closeBracePos
+      let res = []
+      let j = 0
+      for (let i = 0; i <= inputArray.length; i++) {
+        // < (+ 3 6) 4
+        if (inputArray[i] === '(') {
+          openBracePos = i
+          console.log('openBrace', openBracePos)
+        }
+        if (inputArray[i] === ')') {
+          closeBracePos = i
+          console.log('closeBrace', closeBracePos)
+          slicedArray = inputArray.slice(openBracePos + 2, closeBracePos)
+          console.log('sliced Array3', slicedArray)
+          let key1 = inputArray[openBracePos + 1]
+          console.log('key1', key1)
+          res[j++] = env[key1](slicedArray)
+          console.log('res', res)
+        // return [finalResult, '']
+        }
+      }
+      res[j++] = inputArray[inputArray.length - 1] * 1
+      console.log('finalres', res)
+      finalResult = env[inputArray[0]](res)
+      console.log('finalResult0', finalResult)
+      return [finalResult, '']
+    }
   }
 
   if (inputArray[0] !== '(') {
@@ -213,7 +291,7 @@ let sExpressionParser = (input) => {
   let inputArray = input.split(' ')
   console.log('inputArray', inputArray)
   inputArray = inputArray.filter((ele) => { return /\S/.test(ele) })
-  console.log('inputArray', inputArray)
+  console.log('inputArray without spaces', inputArray)
   let result = identifierParser(inputArray)
   if (result === null) return null
   return [result[0], '']
