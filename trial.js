@@ -1,7 +1,7 @@
 let readline = require('readline')
 
 let rl = readline.createInterface(process.stdin, process.stdout)
-rl.setPrompt('>> ')
+rl.setPrompt('> ')
 rl.prompt()
 rl.on('line', function (input) {
   if (input === 'exit') rl.close()
@@ -33,9 +33,11 @@ let env = {
   '<': (args) => { return args.reduce((a, b) => a * 1 < b * 1) },
   '>=': (args) => { return args.reduce((a, b) => a * 1 >= b * 1) },
   '<=': (args) => { return args.reduce((a, b) => a * 1 <= b * 1) },
-  '===': (args) => { return args.reduce((a, b) => a * 1 === b * 1) }
+  '===': (args) => { return args.reduce((a, b) => a * 1 === b * 1) },
+  'pi': 3.14159
 }
 let props = Object.keys(env)
+let arithmeticOperators = ['+', '-', '*', '/', '>', '<', '>=', '<=', '===']
 
 // Block of parsers -----------------------------------------------------------------------------------------------------------------------------------------------------
 let numberParser = (input, num, regEx = /^(-?(0|[1-9]\d*))(\.\d+)?(((e)(\+|-)?)\d+)?/ig) => (num = input.match(regEx)) ? [num[0] * 1, input.slice(num[0].length)] : null
@@ -93,6 +95,27 @@ let identifierParser = (inputArray) => {
   if (inputArray[0] === 'quote') {
     return quotationInterpreter(inputArray)
   }
+
+  if (env.hasOwnProperty(inputArray[0])) {
+    if (arithmeticOperators.includes(inputArray[0])) return arithmeticEvaluator(inputArray)
+    let proc = inputArray[0]
+    console.log('procedure', proc)
+    let params = inputArray.slice(1)
+    console.log('parameters', params)
+    let keys = Object.keys
+    console.log('updated local env', env)
+    for (let key in env[proc].args) {
+      for (let i = 0; i < env[proc].eval.length; i++) {
+        if (env[proc].eval[i] === key) {
+          env[proc].eval[i] = env[proc].args[key]
+          console.log('mapped', env[proc].eval[i])
+        }
+      }
+    }
+    console.log('updated local env1', env)
+    return 'wait'
+  }
+
   return arithmeticEvaluator(inputArray)
 }
 
@@ -221,15 +244,57 @@ function nestedExpression (inputArray) {
 // definition parser ------------------------------------------------------------------------------------------
 let definitionInterpreter = (inputArray) => {
   console.log('defineInput', inputArray)
-  // if (inputArray[0] !== 'define') return null
-  let value = inputArray.splice(2)
+  let value = inputArray.slice(2)
   console.log('value', value)
+  let functionName = inputArray[1]
+  console.log('functionName', functionName)
+  if (value[1] === 'lambda') {
+    let lambda = lambdaFunction(value)
+    console.log('received lambda', lambda)
+    env[functionName] = lambda
+    console.log('env', env)
+    props = Object.keys(env)
+    console.log('new keys', props)
+    return 'Global environment updated'
+  }
   let finalResult = expressionParser(value.join(' '))
   console.log('finalResult', finalResult)
   if (finalResult === null) return null
-  env[`${inputArray[1]}`] = finalResult[0]
+  env[`${inputArray[1]}`] = finalResult
   console.log('env', env)
   return 'Global Object successfully updated'
+}
+
+// lambda ---------------------------------------------------------------------------------------------------------
+let lambdaFunction = (input) => {
+  console.log('lambda input', input)
+  input = input.slice(1, input.length - 1)
+  console.log('sliced input', input)
+  let argOpenBrace = 0
+  let argCloseBrace = 0
+  for (let i = 1; i < input.length; i++) {
+    if (input[i] === '(') argOpenBrace = i
+    console.log('argOpenBrace', argOpenBrace)
+    if (input[i] === ')') {
+      argCloseBrace = i
+      console.log('argCloseBrace', argCloseBrace)
+      break
+    }
+  }
+  let param = input.slice(argOpenBrace + 1, argCloseBrace)
+  console.log('parameters', param)
+  let expression = input.slice(argCloseBrace + 1)
+  console.log('expression', expression)
+
+  let local = {}
+  local['localEnv'] = env
+  local['args'] = {}
+  for (let i = 0; i < param.length; i++) {
+    local.args[[param[i]]] = null
+  }
+  local['eval'] = expression
+  console.log('localEnv', local)
+  return local
 }
 
 // arithmetic evaluator ------------------------------------------------------------------------------------------
@@ -263,7 +328,7 @@ let arithmeticEvaluator = (input) => {
     if (slicedArray.length === 2) {
       finalResult = env[inputArray[0]](slicedArray)
       console.log('finalResult2', finalResult)
-      return [finalResult, '']
+      return finalResult
     } else {
       let openBracePos
       let closeBracePos
@@ -319,10 +384,13 @@ let sExpressionParser = (input) => {
   console.log('sExpinp', input)
   console.log('props', props)
   if (!input.startsWith('(')) return null
-  let braceCount
+  let braceCount = 0
   for (let i = 0; i < input.length; i++) {
+    // console.log(input.charAt(i))
     if (input.charAt(i) === '(' || input.charAt(i) === ')') braceCount++
+    // console.log('braceCount', braceCount)
   }
+  // console.log('braceCount', braceCount)
   if (braceCount % 2 !== 0) return 'invalid input, missing brace'
   input = input.substr(1).slice(0, -1)
   input = input.replace(/\(/g, ' ( ').replace(/\)/g, ' ) ')

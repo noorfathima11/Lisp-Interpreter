@@ -29,10 +29,11 @@ let env = {
   '<': (args) => { return args.reduce((a, b) => a * 1 < b * 1) },
   '>=': (args) => { return args.reduce((a, b) => a * 1 >= b * 1) },
   '<=': (args) => { return args.reduce((a, b) => a * 1 <= b * 1) },
-  '===': (args) => { return args.reduce((a, b) => a * 1 === b * 1) }
+  '===': (args) => { return args.reduce((a, b) => a * 1 === b * 1) },
+  'pi': 3.14159
 }
 let props = Object.keys(env)
-let condProps = ['>', '<', '>=', '<=', '===']
+let arithmeticOperators = ['+', '-', '*', '/', '>', '<', '>=', '<=', '===']
 
 // Block of parsers -----------------------------------------------------------------------------------------------------------------------------------------------------
 let numberParser = (input, num, regEx = /^(-?(0|[1-9]\d*))(\.\d+)?(((e)(\+|-)?)\d+)?/ig) => (num = input.match(regEx)) ? [num[0] * 1, input.slice(num[0].length)] : null
@@ -77,7 +78,7 @@ let symbolParser = input => {
   }
   return [actual, remaining]
 }
-
+// Identifier Parser ------------------------------------------------------------------------------------------
 let identifierParser = (inputArray) => {
   console.log('identifierInput', inputArray)
   if (inputArray[0] === 'define') {
@@ -86,9 +87,31 @@ let identifierParser = (inputArray) => {
   if (inputArray[0] === 'if') {
     return conditionalInterpreter(inputArray)
   }
+
+  if (inputArray[0] === 'quote') {
+    return quotationInterpreter(inputArray)
+  }
+
+  if (env.hasOwnProperty(inputArray[0])) {
+    // without braces
+    if (arithmeticOperators.includes(inputArray[0])) return arithmeticEvaluator(inputArray)
+
+    env[inputArray[0]].args.x = inputArray.slice(1).join(' ')
+    console.log('updated local env', env)
+    return 'wait'
+  }
+
   return arithmeticEvaluator(inputArray)
 }
 
+// Quotation Interpreter -------------------------------------------------------------------------------------
+let quotationInterpreter = (inputArray) => {
+  inputArray = inputArray.slice(1)
+  console.log('quote sliced inputArray', inputArray.join(' '))
+  return inputArray.join(' ')
+}
+
+// Conditional Interpreter -----------------------------------------------------------------------------------
 let conditionalInterpreter = (inputArray) => {
   console.log('conditional input', inputArray)
   inputArray = inputArray.slice(1)
@@ -111,16 +134,34 @@ let conditionalInterpreter = (inputArray) => {
     alt = nestedExpression(inputArray.slice(cond.length + conseq.length))
     console.log('nested alt received', alt)
   }
-  let isCond = arithmeticEvaluator(cond.slice(1, cond.length - 1))
-  console.log('isCond', isCond)
-  if (isCond[0]) {
-    let isConseq = arithmeticEvaluator(conseq.slice(1, conseq.length - 1))
-    console.log('isConseq', isConseq)
-    return [isConseq, '']
+  let isCond
+  if (cond.length === 1) {
+    isCond = expressionParser(cond)
+    console.log('here', isCond)
+  } else {
+    isCond = arithmeticEvaluator(cond.slice(1, cond.length - 1))
+    console.log('isCond', isCond)
   }
-  let isalt = arithmeticEvaluator(alt.slice(1, alt.length - 1))
-  console.log('isConseq', isalt)
-  return [isalt, '']
+  if (isCond[0]) {
+    let isConseq
+    if (conseq.length === 1) {
+      isConseq = expressionParser(conseq)
+      console.log('here1', isConseq)
+      return isConseq
+    }
+    isConseq = arithmeticEvaluator(conseq.slice(1, conseq.length - 1))
+    console.log('isConseq', isConseq)
+    return isConseq
+  }
+  let isAlt
+  if (alt.length === 1) {
+    isAlt = expressionParser(alt)
+    console.log('here1', isAlt)
+    return isAlt
+  }
+  isAlt = arithmeticEvaluator(alt.slice(1, alt.length - 1))
+  console.log('isConseq', isAlt)
+  return isAlt
 }
 function simpleExpression (inputArray) {
   console.log('simple expression', inputArray)
@@ -130,6 +171,9 @@ function simpleExpression (inputArray) {
   let closeBracePos = []
   let k = 0
   let key
+  if (inputArray[0] !== '(') {
+    return inputArray[0]
+  }
   for (let i = 0; i < inputArray.length; i++) {
     if (inputArray[i] === '(') {
       openBracePos[j++] = i
@@ -182,24 +226,61 @@ function nestedExpression (inputArray) {
   }
 }
 
-function getConseq (inputArray) {
-  console.log('conseqInput', inputArray)
-
-  return ['wait', '']
-}
-
+// definition parser ------------------------------------------------------------------------------------------
 let definitionInterpreter = (inputArray) => {
   console.log('defineInput', inputArray)
-  // if (inputArray[0] !== 'define') return null
-  let value = inputArray.splice(2)
+  let value = inputArray.slice(2)
   console.log('value', value)
-  let finalResult = expressionParser(value.join())
+  let functionName = inputArray[1]
+  console.log('functionName', functionName)
+  if (value[1] === 'lambda') {
+    let lambda = lambdaFunction(value)
+    console.log('received lambda', lambda)
+    env[functionName] = lambda
+    console.log('env', env)
+    props = Object.keys(env)
+    console.log('new keys', props)
+    return 'Global environment updated'
+  }
+  let finalResult = expressionParser(value.join(' '))
+  console.log('finalResult', finalResult)
   if (finalResult === null) return null
-  env[`${inputArray[1]}`] = finalResult[0]
+  env[`${inputArray[1]}`] = finalResult
   console.log('env', env)
-  return ['Global Object successfully updated', '']
+  return 'Global Object successfully updated'
 }
 
+// lambda ---------------------------------------------------------------------------------------------------------
+let lambdaFunction = (input) => {
+  console.log('lambda input', input)
+  input = input.slice(1, input.length - 1)
+  console.log('sliced input', input)
+  let argOpenBrace = 0
+  let argCloseBrace = 0
+  for (let i = 1; i < input.length; i++) {
+    if (input[i] === '(') argOpenBrace = i
+    console.log('argOpenBrace', argOpenBrace)
+    if (input[i] === ')') {
+      argCloseBrace = i
+      console.log('argCloseBrace', argCloseBrace)
+      break
+    }
+  }
+  let param = input.slice(argOpenBrace + 1, argCloseBrace)
+  console.log('parameters', param)
+  let expression = input.slice(argCloseBrace + 1)
+  console.log('expression', expression)
+
+  let local = {
+    'localEnv': env,
+    'args': { [param]: null },
+    'eval': expression
+  }
+  console.log('localEnv', local)
+  return local
+}
+
+// arithmetic evaluator ------------------------------------------------------------------------------------------
 let arithmeticEvaluator = (input) => {
   console.log('aeval', input)
   let inputArray = input.slice(0)
@@ -230,7 +311,7 @@ let arithmeticEvaluator = (input) => {
     if (slicedArray.length === 2) {
       finalResult = env[inputArray[0]](slicedArray)
       console.log('finalResult2', finalResult)
-      return [finalResult, '']
+      return finalResult
     } else {
       let openBracePos
       let closeBracePos
@@ -251,14 +332,13 @@ let arithmeticEvaluator = (input) => {
           console.log('key1', key1)
           res[j++] = env[key1](slicedArray)
           console.log('res', res)
-        // return [finalResult, '']
         }
       }
       res[j++] = inputArray[inputArray.length - 1] * 1
       console.log('finalres', res)
       finalResult = env[inputArray[0]](res)
       console.log('finalResult0', finalResult)
-      return [finalResult, '']
+      return finalResult
     }
   }
 
@@ -270,7 +350,7 @@ let arithmeticEvaluator = (input) => {
       console.log('reversed result1', result)
       finalResult = env[inputArray[0]](result)
       console.log('finalResult1', finalResult)
-      return [finalResult, '']
+      return finalResult
     } else result[k++] = inputArray[1] * 1
   }
   result.reverse()
@@ -278,14 +358,23 @@ let arithmeticEvaluator = (input) => {
   finalResult = env[inputArray[0]](result)
   console.log('finalResult', finalResult)
 
-  return [finalResult, '']
+  return finalResult
 }
 
+// S Expression Parser --------------------------------------------------------------------------------------------
 let sExpressionParser = (input) => {
   input = input.trim()
   console.log('sExpinp', input)
   console.log('props', props)
   if (!input.startsWith('(')) return null
+  let braceCount = 0
+  for (let i = 0; i < input.length; i++) {
+    // console.log(input.charAt(i))
+    if (input.charAt(i) === '(' || input.charAt(i) === ')') braceCount++
+    // console.log('braceCount', braceCount)
+  }
+  // console.log('braceCount', braceCount)
+  if (braceCount % 2 !== 0) return 'invalid input, missing brace'
   input = input.substr(1).slice(0, -1)
   input = input.replace(/\(/g, ' ( ').replace(/\)/g, ' ) ')
   console.log('removed braces', input)
@@ -295,9 +384,10 @@ let sExpressionParser = (input) => {
   console.log('inputArray without spaces', inputArray)
   let result = identifierParser(inputArray)
   if (result === null) return null
-  return [result[0], '']
+  return result
 }
 
+// ---------------------------------------------------------------------------------------------------------
 let spaceParser = input => input.match(/^[\n*\s\n*]/) ? [null, input.slice(input.match(/\S/).index)] : null
 let commaParser = input => input.startsWith(',') ? [null, input.slice(1)] : null
 
@@ -313,9 +403,10 @@ let evaluator = (input) => {
   let parsePass
 
   parsePass = expressionParser(input)
+  console.log('parsePass', parsePass)
   if (parsePass === null) return null
   if (parsePass !== null) {
-    id = parsePass[0]
+    id = parsePass
     console.log('return id', id)
     return id
   }

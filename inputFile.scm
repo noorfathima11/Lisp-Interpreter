@@ -1,1 +1,1 @@
-(define r 10)
+(define multiply (lambda (x y) (* x y)))
