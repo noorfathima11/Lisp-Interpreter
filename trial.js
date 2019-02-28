@@ -451,7 +451,10 @@ let evaluator = (input) => {
 
   parsePass = expressionParser(input)
   console.log('parsePass', parsePass)
-  if (parsePass === null) return null
+  if (parsePass === null) {
+    if (env.hasOwnProperty(input)) return env[input]
+    return null
+  }
   if (parsePass !== null) {
     id = parsePass
     console.log('return id', id)
