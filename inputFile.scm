@@ -1,1 +1,1 @@
-(define multiply (lambda (x y) (* x y)))
+(define square (lambda (x) (* x x)))

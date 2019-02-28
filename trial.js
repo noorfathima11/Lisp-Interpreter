@@ -98,22 +98,9 @@ let identifierParser = (inputArray) => {
 
   if (env.hasOwnProperty(inputArray[0])) {
     if (arithmeticOperators.includes(inputArray[0])) return arithmeticEvaluator(inputArray)
-    let proc = inputArray[0]
-    console.log('procedure', proc)
-    let params = inputArray.slice(1)
-    console.log('parameters', params)
-    let keys = Object.keys
-    console.log('updated local env', env)
-    for (let key in env[proc].args) {
-      for (let i = 0; i < env[proc].eval.length; i++) {
-        if (env[proc].eval[i] === key) {
-          env[proc].eval[i] = env[proc].args[key]
-          console.log('mapped', env[proc].eval[i])
-        }
-      }
-    }
-    console.log('updated local env1', env)
-    return 'wait'
+    let evalExp = lambdaEvaluate(inputArray)
+    console.log('evalExp', evalExp)
+    return evalExp
   }
 
   return arithmeticEvaluator(inputArray)
@@ -249,7 +236,7 @@ let definitionInterpreter = (inputArray) => {
   let functionName = inputArray[1]
   console.log('functionName', functionName)
   if (value[1] === 'lambda') {
-    let lambda = lambdaFunction(value)
+    let lambda = lambdaUpdate(value)
     console.log('received lambda', lambda)
     env[functionName] = lambda
     console.log('env', env)
@@ -266,7 +253,7 @@ let definitionInterpreter = (inputArray) => {
 }
 
 // lambda ---------------------------------------------------------------------------------------------------------
-let lambdaFunction = (input) => {
+let lambdaUpdate = (input) => {
   console.log('lambda input', input)
   input = input.slice(1, input.length - 1)
   console.log('sliced input', input)
@@ -295,6 +282,41 @@ let lambdaFunction = (input) => {
   local['eval'] = expression
   console.log('localEnv', local)
   return local
+}
+
+let lambdaEvaluate = (inputArray) => {
+  let proc = inputArray[0]
+  console.log('procedure', proc)
+  let params = inputArray.slice(1)
+  console.log('parameters', params)
+  let evalParams = expressionParser(params.join(' '))
+  console.log('evalParams', evalParams)
+  evalParams = evalParams.toString().split('')
+  console.log('evalParamsArray', evalParams)
+  let keys = Object.keys(env[proc].args)
+  console.log('keys', keys)
+  for (let i = 0; i < keys.length; i++) {
+    for (let ele in env[proc].args) {
+      if (ele === keys[i]) {
+        env[proc].args[ele] = evalParams[i]
+      }
+    }
+  }
+  console.log('updated local env', env)
+  for (let key in env[proc].args) {
+    for (let i = 0; i < env[proc].eval.length; i++) {
+      if (env[proc].eval[i] === key) {
+        env[proc].eval[i] = env[proc].args[key]
+        console.log('mapped', env[proc].eval[i])
+      }
+    }
+  }
+  console.log('updated local env1', env)
+
+  // send eval to sExpression parser
+  let result = sExpressionParser(env[proc].eval.join(' '))
+  console.log('evaluated result', result)
+  return result
 }
 
 // arithmetic evaluator ------------------------------------------------------------------------------------------
