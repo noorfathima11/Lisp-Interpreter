@@ -291,7 +291,7 @@ let lambdaEvaluate = (inputArray) => {
   console.log('parameters', params)
   let evalParams = expressionParser(params.join(' '))
   console.log('evalParams', evalParams)
-  evalParams = evalParams.toString().split('')
+  evalParams = evalParams.toString().split(' ')
   console.log('evalParamsArray', evalParams)
   let keys = Object.keys(env[proc].args)
   console.log('keys', keys)
@@ -302,6 +302,7 @@ let lambdaEvaluate = (inputArray) => {
       }
     }
   }
+  let variable = /[A-Z]/i
   console.log('updated local env', env)
   for (let key in env[proc].args) {
     for (let i = 0; i < env[proc].eval.length; i++) {
@@ -309,8 +310,15 @@ let lambdaEvaluate = (inputArray) => {
         env[proc].eval[i] = env[proc].args[key]
         console.log('mapped', env[proc].eval[i])
       }
+      if (variable.test(env[proc].eval[i])) {
+        console.log('yes', env[proc].eval[i])
+        if (env.hasOwnProperty(env[proc].eval[i])) {
+          env[proc].eval[i] = env[env[proc].eval[i]]
+        }
+      }
     }
   }
+
   console.log('updated local env1', env)
 
   // send eval to sExpression parser
