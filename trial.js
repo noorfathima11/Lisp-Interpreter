@@ -1,5 +1,21 @@
+let env = {
+  '+': (args) => { return args.reduce((a, b) => a * 1 + b * 1) },
+  '-': (args) => { return args.reduce((a, b) => a * 1 - b * 1) },
+  '*': (args) => { return args.reduce((a, b) => (a * 1) * (b * 1)) },
+  '/': (args) => { return args.reduce((a, b) => a * 1 / b * 1) },
+  '>': (args) => { return args.reduce((a, b) => a * 1 > b * 1) },
+  '<': (args) => { return args.reduce((a, b) => a * 1 < b * 1) },
+  '>=': (args) => { return args.reduce((a, b) => a * 1 >= b * 1) },
+  '<=': (args) => { return args.reduce((a, b) => a * 1 <= b * 1) },
+  '===': (args) => { return args.reduce((a, b) => a * 1 === b * 1) },
+  'pi': 3.14159,
+  'abs': (x) => { return Math.abs(x) },
+  'append': (args) => { return args.reduce((a, b) => a + b) },
+  'apply': function lambda (proc, args) { return proc(...args) },
+  'begin': function lambda (...x) { return x[-1] },
+  'car': function lambda (x) { return x[0] }
+}
 let readline = require('readline')
-
 let rl = readline.createInterface(process.stdin, process.stdout)
 rl.setPrompt('> ')
 rl.prompt()
@@ -13,6 +29,7 @@ rl.on('line', function (input) {
 })
 
 let factoryParser = function (...parsers) {
+  // console.log('factory parser input', ...parsers)
   return input => {
     let spaceCheck
     input = (spaceCheck = spaceParser(input)) ? spaceCheck[1] : input
@@ -24,25 +41,14 @@ let factoryParser = function (...parsers) {
   }
 }
 
-let env = {
-  '+': (args) => { return args.reduce((a, b) => a * 1 + b * 1) },
-  '-': (args) => { return args.reduce((a, b) => a * 1 - b * 1) },
-  '*': (args) => { return args.reduce((a, b) => (a * 1) * (b * 1)) },
-  '/': (args) => { return args.reduce((a, b) => a * 1 / b * 1) },
-  '>': (args) => { return args.reduce((a, b) => a * 1 > b * 1) },
-  '<': (args) => { return args.reduce((a, b) => a * 1 < b * 1) },
-  '>=': (args) => { return args.reduce((a, b) => a * 1 >= b * 1) },
-  '<=': (args) => { return args.reduce((a, b) => a * 1 <= b * 1) },
-  '===': (args) => { return args.reduce((a, b) => a * 1 === b * 1) },
-  'pi': 3.14159
-}
 let props = Object.keys(env)
 let arithmeticOperators = ['+', '-', '*', '/', '>', '<', '>=', '<=', '===']
 
 // Block of parsers -----------------------------------------------------------------------------------------------------------------------------------------------------
-let numberParser = (input, num, regEx = /^(-?(0|[1-9]\d*))(\.\d+)?(((e)(\+|-)?)\d+)?/ig) => (num = input.match(regEx)) ? [num[0] * 1, input.slice(num[0].length)] : null
+let numberParser = (input, num, regEx = /^(-?(0|[1-9]\d*))(\.\d+)?(((e)(\+|-)?)\d+)?/ig) => (num = input.match(regEx)) ? [num[0] * 1] : null
 
 let symbolParser = input => {
+  console.log('symbolParser input', input)
   let remaining = ''
   let actual = ''
   if (!input.startsWith("'")) return null
@@ -80,7 +86,7 @@ let symbolParser = input => {
       }
     }
   }
-  return [actual, remaining]
+  return actual
 }
 // Identifier Parser ------------------------------------------------------------------------------------------
 let identifierParser = (inputArray) => {
@@ -97,7 +103,10 @@ let identifierParser = (inputArray) => {
   }
 
   if (env.hasOwnProperty(inputArray[0])) {
-    if (arithmeticOperators.includes(inputArray[0])) return arithmeticEvaluator(inputArray)
+    if (arithmeticOperators.includes(inputArray[0])) {
+      console.log('arithmetic input', inputArray)
+      return arithmeticEvaluator(inputArray)
+    }
     let evalExp = lambdaEvaluate(inputArray)
     console.log('evalExp', evalExp)
     return evalExp
@@ -141,7 +150,7 @@ let conditionalInterpreter = (inputArray) => {
     isCond = expressionParser(cond)
     console.log('here', isCond)
   } else {
-    isCond = arithmeticEvaluator(cond.slice(1, cond.length - 1))
+    isCond = expressionParser(cond.join(' '))
     console.log('isCond', isCond)
   }
   if (isCond[0]) {
@@ -151,7 +160,7 @@ let conditionalInterpreter = (inputArray) => {
       console.log('here1', isConseq)
       return isConseq
     }
-    isConseq = arithmeticEvaluator(conseq.slice(1, conseq.length - 1))
+    isConseq = expressionParser(conseq.join(' '))
     console.log('isConseq', isConseq)
     return isConseq
   }
@@ -161,8 +170,8 @@ let conditionalInterpreter = (inputArray) => {
     console.log('here1', isAlt)
     return isAlt
   }
-  isAlt = arithmeticEvaluator(alt.slice(1, alt.length - 1))
-  console.log('isConseq', isAlt)
+  isAlt = expressionParser(alt.join(' '))
+  console.log('isAlt', isAlt)
   return isAlt
 }
 function simpleExpression (inputArray) {
@@ -174,7 +183,7 @@ function simpleExpression (inputArray) {
   let k = 0
   let key
   if (inputArray[0] !== '(') {
-    return inputArray[0]
+    return inputArray[0].split('')
   }
   for (let i = 0; i < inputArray.length; i++) {
     if (inputArray[i] === '(') {
@@ -244,6 +253,7 @@ let definitionInterpreter = (inputArray) => {
     console.log('new keys', props)
     return 'Global environment updated'
   }
+  console.log('not lambda')
   let finalResult = expressionParser(value.join(' '))
   console.log('finalResult', finalResult)
   if (finalResult === null) return null
@@ -312,7 +322,7 @@ let lambdaEvaluate = (inputArray) => {
       }
       if (variable.test(env[proc].eval[i])) {
         console.log('yes', env[proc].eval[i])
-        if (env.hasOwnProperty(env[proc].eval[i])) {
+        if (env.hasOwnProperty(env[proc].eval[i]) && (env[proc].eval[i] !== proc)) {
           env[proc].eval[i] = env[env[proc].eval[i]]
         }
       }
@@ -330,6 +340,10 @@ let lambdaEvaluate = (inputArray) => {
 // arithmetic evaluator ------------------------------------------------------------------------------------------
 let arithmeticEvaluator = (input) => {
   console.log('aeval', input)
+  for (let i = 0; i < input.length; i++) {
+    if (arithmeticOperators.includes(input[i])) continue
+    if (env.hasOwnProperty(input[i])) input[i] = env[input[i]]
+  }
   let inputArray = input.slice(0)
   let endIndex
   let slicedArray
@@ -347,6 +361,7 @@ let arithmeticEvaluator = (input) => {
         slicedArray = inputArray.slice(i + 2, endIndex)
         console.log('slicedArray', slicedArray)
         if (slicedArray.length !== 2) return null
+        console.log('slicedArray1', slicedArray)
         result[k++] = env[key](slicedArray)
         console.log('envResult', result)
       }
@@ -400,6 +415,7 @@ let arithmeticEvaluator = (input) => {
       return finalResult
     } else result[k++] = inputArray[1] * 1
   }
+  console.log('result array', result)
   result.reverse()
   console.log('reversed result', result)
   finalResult = env[inputArray[0]](result)
