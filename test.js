@@ -1,3 +1,5 @@
+// works until fact
+module.exports = evaluator
 let env = {
   '+': (args) => { return args.reduce((a, b) => a * 1 + b * 1) },
   '-': (args) => { return args.reduce((a, b) => a * 1 - b * 1) },
@@ -15,6 +17,7 @@ let env = {
   'begin': function lambda (...x) { return x[-1] },
   'car': function lambda (x) { return x[0] }
 }
+
 let readline = require('readline')
 let rl = readline.createInterface(process.stdin, process.stdout)
 rl.setPrompt('> ')
@@ -86,7 +89,7 @@ let symbolParser = input => {
       }
     }
   }
-  return [actual]
+  return actual
 }
 // Identifier Parser ------------------------------------------------------------------------------------------
 let identifierParser = (inputArray) => {
@@ -153,10 +156,19 @@ let conditionalInterpreter = (inputArray) => {
     isCond = expressionParser(cond.join(' '))
     console.log('isCond', isCond)
   }
-  if (isCond[0]) {
+
+  if (isCond) {
     let isConseq
     if (conseq.length === 1) {
-      isConseq = expressionParser(conseq)
+      if (typeof (conseq) === 'object') {
+        isConseq = expressionParser(JSON.stringify(conseq))
+        console.log('stringified isConseq', isConseq)
+      }
+      if (typeof (isConseq) === 'object') {
+        console.log('it is an array')
+        return isConseq[0]
+      }
+      isConseq = expressionParser(conseq.join(' '))
       console.log('here1', isConseq)
       return isConseq
     }
@@ -166,8 +178,16 @@ let conditionalInterpreter = (inputArray) => {
   }
   let isAlt
   if (alt.length === 1) {
-    isAlt = expressionParser(alt)
-    console.log('here1', isAlt)
+    if (typeof (alt) === 'object') {
+      isAlt = expressionParser(JSON.stringify(alt))
+      console.log('stringified isAlt', isAlt)
+    }
+    if (typeof (isAlt) === 'object') {
+      console.log('it is an array')
+      return isAlt[0]
+    }
+    isAlt = expressionParser(alt.join(' '))
+    console.log('here2', isAlt)
     return isAlt
   }
   isAlt = expressionParser(alt.join(' '))
@@ -183,7 +203,7 @@ function simpleExpression (inputArray) {
   let k = 0
   let key
   if (inputArray[0] !== '(') {
-    return inputArray[0]
+    return inputArray[0].split('')
   }
   for (let i = 0; i < inputArray.length; i++) {
     if (inputArray[i] === '(') {
@@ -405,7 +425,6 @@ let arithmeticEvaluator = (input) => {
   }
 
   if (inputArray[0] !== '(') {
-    console.log('result array1', inputArray)
     if (isNaN(inputArray[1]) * 1) {
       key = inputArray[0]
       console.log('key1', key)
@@ -457,7 +476,7 @@ let commaParser = input => input.startsWith(',') ? [null, input.slice(1)] : null
 
 let expressionParser = factoryParser(numberParser, symbolParser, sExpressionParser)
 
-let evaluator = (input) => {
+function evaluator (input) {
   console.log('inp', input)
   // can be replaced by trim???
   let spaceCheck

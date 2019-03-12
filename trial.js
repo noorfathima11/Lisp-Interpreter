@@ -1,3 +1,4 @@
+module.exports = evaluator
 let env = {
   '+': (args) => { return args.reduce((a, b) => a * 1 + b * 1) },
   '-': (args) => { return args.reduce((a, b) => a * 1 - b * 1) },
@@ -8,13 +9,9 @@ let env = {
   '>=': (args) => { return args.reduce((a, b) => a * 1 >= b * 1) },
   '<=': (args) => { return args.reduce((a, b) => a * 1 <= b * 1) },
   '===': (args) => { return args.reduce((a, b) => a * 1 === b * 1) },
-  'pi': 3.14159,
-  'abs': (x) => { return Math.abs(x) },
-  'append': (args) => { return args.reduce((a, b) => a + b) },
-  'apply': function lambda (proc, args) { return proc(...args) },
-  'begin': function lambda (...x) { return x[-1] },
-  'car': function lambda (x) { return x[0] }
+  'pi': 3.14159
 }
+
 let readline = require('readline')
 let rl = readline.createInterface(process.stdin, process.stdout)
 rl.setPrompt('> ')
@@ -45,7 +42,7 @@ let props = Object.keys(env)
 let arithmeticOperators = ['+', '-', '*', '/', '>', '<', '>=', '<=', '===']
 
 // Block of parsers -----------------------------------------------------------------------------------------------------------------------------------------------------
-let numberParser = (input, num, regEx = /^(-?(0|[1-9]\d*))(\.\d+)?(((e)(\+|-)?)\d+)?/ig) => (num = input.match(regEx)) ? [num[0] * 1] : null
+let numberParser = (input, num, regEx = /^(-?(0|[1-9]\d*))(\.\d+)?(((e)(\+|-)?)\d+)?/ig) => (num = input.match(regEx)) ? [num[0] * 1, input.slice(num[0].length)] : null
 
 let symbolParser = input => {
   console.log('symbolParser input', input)
@@ -86,7 +83,26 @@ let symbolParser = input => {
       }
     }
   }
-  return actual
+  return [actual, remaining]
+}
+let listParser = input => {
+  console.log('list parser input', input)
+  if (!input.startsWith('[')) return null
+  input = input.substr(1)
+  let returnArray = []
+  while (!input.startsWith(']')) {
+    let spaceCheck
+    input = (spaceCheck = spaceParser(input)) ? spaceCheck[1] : input
+    let result1 = valueParser(input)
+    if (!result1) { continue } returnArray.push(result1[0])
+    input = result1[1]
+    input = (spaceCheck = spaceParser(input)) ? spaceCheck[1] : input
+    let result = commaParser(input)
+    if (!result) continue
+    if (result[1].match(/^\s*]\s*/)) return null
+    input = result[1]
+  }
+  return [returnArray, input.slice(1)]
 }
 // Identifier Parser ------------------------------------------------------------------------------------------
 let identifierParser = (inputArray) => {
@@ -139,12 +155,10 @@ let conditionalInterpreter = (inputArray) => {
     conseq = nestedExpression(inputArray.slice(cond.length))
     console.log('nested conseq received', conseq)
   }
-  let alt = simpleExpression(inputArray.slice(cond.length + conseq.length))
-  console.log('simple alt received', alt)
-  if (alt === 'not simple') {
-    alt = nestedExpression(inputArray.slice(cond.length + conseq.length))
-    console.log('nested alt received', alt)
-  }
+
+  let alt = inputArray.slice(cond.length + conseq.length)
+  console.log('remaining alt', alt)
+
   let isCond
   if (cond.length === 1) {
     isCond = expressionParser(cond)
@@ -153,27 +167,44 @@ let conditionalInterpreter = (inputArray) => {
     isCond = expressionParser(cond.join(' '))
     console.log('isCond', isCond)
   }
-  if (isCond[0]) {
+  if (isCond) {
     let isConseq
     if (conseq.length === 1) {
-      isConseq = expressionParser(conseq)
+      isConseq = expressionParser(conseq.join(' '))
       console.log('here1', isConseq)
+      if (typeof (isConseq) === 'object') {
+        console.log('it is an array')
+        return isConseq[0]
+      }
       return isConseq
     }
     isConseq = expressionParser(conseq.join(' '))
     console.log('isConseq', isConseq)
+    if (typeof (isConseq) === 'object') {
+      console.log('it is an array')
+      return isConseq[0]
+    }
     return isConseq
   }
   let isAlt
   if (alt.length === 1) {
-    isAlt = expressionParser(alt)
+    isAlt = expressionParser(alt.join(' '))
     console.log('here1', isAlt)
+    if (typeof (isAlt) === 'object') {
+      console.log('it is an array')
+      return isAlt[0]
+    }
     return isAlt
   }
   isAlt = expressionParser(alt.join(' '))
   console.log('isAlt', isAlt)
+  if (typeof (isAlt) === 'object') {
+    console.log('it is an array')
+    return isAlt[0]
+  }
   return isAlt
 }
+
 function simpleExpression (inputArray) {
   console.log('simple expression', inputArray)
   let openBracePos = []
@@ -182,28 +213,33 @@ function simpleExpression (inputArray) {
   let closeBracePos = []
   let k = 0
   let key
-  if (inputArray[0] !== '(') {
-    return inputArray[0].split('')
-  }
-  for (let i = 0; i < inputArray.length; i++) {
-    if (inputArray[i] === '(') {
-      openBracePos[j++] = i
-      console.log('openBracePos, j', openBracePos, j)
-      openBraceCount++
-      if (openBraceCount > 1) return 'not simple'
-      key = inputArray[i + 1]
-      console.log('key in cond', key)
-    }
-    if (inputArray[i] === ')') {
-      closeBracePos[k++] = i
-      console.log('closeBracePos, k', closeBracePos, k)
-      if (closeBracePos[k - 1] - openBracePos[j - 1] === 4) {
-        console.log('diff is 4')
-        return inputArray.slice(openBracePos[j - 1], closeBracePos[k - 1] + 1)
+  // if it is not a nested numeric expression
+  console.log('stringExp', inputArray.join(' '))
+  let expression = valueParser(inputArray.join(' '))
+  console.log('expression', expression)
+  // works for simple mathematical expressions
+  if (expression === null) {
+    for (let i = 0; i < inputArray.length; i++) {
+      if (inputArray[i] === '(') {
+        openBracePos[j++] = i
+        console.log('openBracePos, j', openBracePos, j)
+        openBraceCount++
+        if (openBraceCount > 1) return 'not simple'
+        key = inputArray[i + 1]
+        console.log('key in cond', key)
+      }
+      if (inputArray[i] === ')') {
+        closeBracePos[k++] = i
+        console.log('closeBracePos, k', closeBracePos, k)
+        if (closeBracePos[k - 1] - openBracePos[j - 1] === 4) {
+          console.log('diff is 4')
+          return inputArray.slice(openBracePos[j - 1], closeBracePos[k - 1] + 1)
+        }
       }
     }
   }
-  return null
+  if (Array.isArray(expression[0])) return expression[0]
+  return expression[0].toString().split(' ')
 }
 function nestedExpression (inputArray) {
   let openBracePos = []
@@ -236,7 +272,6 @@ function nestedExpression (inputArray) {
     }
   }
 }
-
 // definition parser ------------------------------------------------------------------------------------------
 let definitionInterpreter = (inputArray) => {
   console.log('defineInput', inputArray)
@@ -257,7 +292,7 @@ let definitionInterpreter = (inputArray) => {
   let finalResult = expressionParser(value.join(' '))
   console.log('finalResult', finalResult)
   if (finalResult === null) return null
-  env[`${inputArray[1]}`] = finalResult
+  env[`${inputArray[1]}`] = finalResult[0]
   console.log('env', env)
   return 'Global Object successfully updated'
 }
@@ -301,7 +336,8 @@ let lambdaEvaluate = (inputArray) => {
   console.log('parameters', params)
   let evalParams = expressionParser(params.join(' '))
   console.log('evalParams', evalParams)
-  evalParams = evalParams.toString().split(' ')
+  if (typeof (evalParams) === 'object') evalParams = evalParams[0].toString().split()
+  else evalParams = evalParams.toString().split(' ')
   console.log('evalParamsArray', evalParams)
   let keys = Object.keys(env[proc].args)
   console.log('keys', keys)
@@ -356,8 +392,17 @@ let arithmeticEvaluator = (input) => {
       if (inputArray[i] === ')') endIndex = i
       console.log('endIndex', endIndex)
       if (inputArray[i] === '(') {
+        console.log('i+1', i + 1)
+        console.log('inputArr', inputArray)
         key = inputArray[i + 1]
         console.log('key', key)
+        if (/[A-Z]i/.test(key)) {
+          console.log('yes its a proc')
+          if (env.hasOwnProperty(key)) {
+            slicedArray = inputArray.slice(i + 1, endIndex)
+            console.log('slicedArray when proc', slicedArray)
+          }
+        }
         slicedArray = inputArray.slice(i + 2, endIndex)
         console.log('slicedArray', slicedArray)
         if (slicedArray.length !== 2) return null
@@ -454,13 +499,14 @@ let sExpressionParser = (input) => {
 let spaceParser = input => input.match(/^[\n*\s\n*]/) ? [null, input.slice(input.match(/\S/).index)] : null
 let commaParser = input => input.startsWith(',') ? [null, input.slice(1)] : null
 
-let expressionParser = factoryParser(numberParser, symbolParser, sExpressionParser)
+let expressionParser = factoryParser(numberParser, symbolParser, sExpressionParser, listParser)
+let valueParser = factoryParser(numberParser, symbolParser, listParser)
 
-let evaluator = (input) => {
+function evaluator (input) {
   console.log('inp', input)
   // can be replaced by trim???
-  let spaceCheck
-  input = (spaceCheck = spaceParser(input)) ? spaceCheck[1] : input
+  let spaceCheck = spaceParser(input)
+  input = spaceCheck ? spaceCheck[1] : input
   console.log('new input', input)
   let id = []
   let parsePass
@@ -470,8 +516,7 @@ let evaluator = (input) => {
   if (parsePass === null) {
     if (env.hasOwnProperty(input)) return env[input]
     return null
-  }
-  if (parsePass !== null) {
+  } else {
     id = parsePass
     console.log('return id', id)
     return id
