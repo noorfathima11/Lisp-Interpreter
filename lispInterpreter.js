@@ -1,4 +1,4 @@
-// works until fact
+
 module.exports = evaluator
 let env = {
   '+': (args) => { return args.reduce((a, b) => a * 1 + b * 1) },
@@ -15,7 +15,11 @@ let env = {
   'append': (args) => { return args.reduce((a, b) => a + b) },
   'apply': function lambda (proc, args) { return proc(...args) },
   'begin': function lambda (...x) { return x[-1] },
-  'car': function lambda (x) { return x[0] }
+  'car': function lambda (x) { return x[0] },
+  'cdr': function lambda (x) { return x.slice(1) },
+  'cons': function lambda (x, y) { return x.split(' ').concat(y) },
+  'equal?': (a, b) => { return a * 1 === b * 1 },
+  'list': function lambda (elements) { return elements.split(' ') }
 }
 
 let readline = require('readline')
@@ -48,7 +52,8 @@ let props = Object.keys(env)
 let arithmeticOperators = ['+', '-', '*', '/', '>', '<', '>=', '<=', '===']
 
 // Block of parsers -----------------------------------------------------------------------------------------------------------------------------------------------------
-let numberParser = (input, num, regEx = /^(-?(0|[1-9]\d*))(\.\d+)?(((e)(\+|-)?)\d+)?/ig) => (num = input.match(regEx)) ? [num[0] * 1] : null
+// let numberParser = (input, num, regEx = /^(-?(0|[1-9]\d*))(\.\d+)?(((e)(\+|-)?)\d+)?/ig) => (num = input.match(regEx)) ? [num[0] * 1] : null
+let numberParser = (input, num, regEx = /^(-?(0|[1-9]\d*))(\.\d+)?(((e)(\+|-)?)\d+)?/ig) => (num = input.match(regEx)) ? [num[0] * 1, input.slice(num[0].length)] : null
 
 let symbolParser = input => {
   console.log('symbolParser input', input)
@@ -89,7 +94,7 @@ let symbolParser = input => {
       }
     }
   }
-  return [actual]
+  return [actual, remaining]
 }
 
 let listParser = input => {
@@ -252,7 +257,12 @@ let definitionInterpreter = (inputArray) => {
   console.log('not lambda')
   let finalResult = expressionParser(value.join(' '))
   console.log('finalResult', finalResult)
-  if (finalResult === null) return null
+  if (finalResult === null) {
+    if (env.hasOwnProperty(value.join(' '))) {
+      finalResult = env[value.join(' ')]
+      console.log('finalResult', finalResult)
+    }
+  } else return null
   env[`${inputArray[1]}`] = finalResult
   console.log('env', env)
   return 'Global Object successfully updated'
@@ -300,8 +310,10 @@ let lambdaEvaluate = (inputArray) => {
   console.log('parameters', params)
   let evalParams = expressionParser(params.join(' '))
   console.log('evalParams', evalParams)
-  evalParams = evalParams.toString().split(' ')
-  console.log('evalParamsArray', evalParams)
+  if (typeof (evalParams) !== 'object') {
+    evalParams = evalParams.toString().split(' ')
+    console.log('evalParamsArray', evalParams)
+  }
   let keys = Object.keys(env[proc].args)
   console.log('keys', keys)
   for (let i = 0; i < keys.length; i++) {
