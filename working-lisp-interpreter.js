@@ -52,8 +52,8 @@ let props = Object.keys(env)
 let arithmeticOperators = ['+', '-', '*', '/', '>', '<', '>=', '<=', '===']
 
 // Block of parsers -----------------------------------------------------------------------------------------------------------------------------------------------------
-// let numberParser = (input, num, regEx = /^(-?(0|[1-9]\d*))(\.\d+)?(((e)(\+|-)?)\d+)?/ig) => (num = input.match(regEx)) ? [num[0] * 1] : null
-let numberParser = (input, num, regEx = /^(-?(0|[1-9]\d*))(\.\d+)?(((e)(\+|-)?)\d+)?/ig) => (num = input.match(regEx)) ? [num[0] * 1, input.slice(num[0].length)] : null
+let numberParser = (input, num, regEx = /^(-?(0|[1-9]\d*))(\.\d+)?(((e)(\+|-)?)\d+)?/ig) => (num = input.match(regEx)) ? [num[0] * 1] : null
+// let numberParser = (input, num, regEx = /^(-?(0|[1-9]\d*))(\.\d+)?(((e)(\+|-)?)\d+)?/ig) => (num = input.match(regEx)) ? [num[0] * 1, input.slice(num[0].length) : null
 
 let symbolParser = input => {
   console.log('symbolParser input', input)
@@ -94,7 +94,7 @@ let symbolParser = input => {
       }
     }
   }
-  return [actual, remaining]
+  return actual
 }
 
 let listParser = input => {
@@ -114,7 +114,7 @@ let listParser = input => {
     if (result[1].match(/^\s*]\s*/)) return null
     input = result[1]
   }
-  return [returnArray, input.slice(1)]
+  return returnArray
 }
 // Identifier Parser ------------------------------------------------------------------------------------------
 let identifierParser = (inputArray) => {

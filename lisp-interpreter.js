@@ -327,6 +327,7 @@ let definitionInterpreter = (inputArray) => {
   console.log('value', value)
   let functionName = inputArray[1]
   console.log('functionName', functionName)
+  if (props.includes(functionName)) return 'cannot update'
   if (value[1] === 'lambda') {
     let lambda = lambdaUpdate(value)
     console.log('received lambda', lambda)
